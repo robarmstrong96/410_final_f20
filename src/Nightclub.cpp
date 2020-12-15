@@ -19,20 +19,39 @@ const int NUMB_THREADS =20;
 const int MAX_PEOPLE =2;
 std::vector<thread> thds;
 
+Semaphore s_cnt(MAX_PEOPLE);
+Semaphore s_binary(0);
+mutex club;
+mutex log_m;
+
 void log(string s){
 	cout<<s<<endl;
 }
 
-void inside(int id){
-	//bask in noisy ambiance
-	log(string("Thread "+to_string(id)+" is inside"));
-	std::this_thread::sleep_for (std::chrono::seconds(1));
+void inside(int id) {
+	s_cnt.wait();
+	{
+		lock_guard<mutex> lck(club);
+		//bask in noisy ambiance
+		{
+			lock_guard<mutex> lck(log_m);
+			log(string("Thread "+to_string(id)+" is inside"));
+		}
+		std::this_thread::sleep_for (std::chrono::seconds(1));
+	}
+	s_cnt.signal();
 }
 
 void nc(int id){
-	log(string("Thread "+to_string(id)+" waiting to get in"));
+	{
+		lock_guard<mutex> lck(log_m);
+		log(string("Thread "+to_string(id)+" waiting to get in"));
+	}
 	inside(id);
-	log(string("Thread "+to_string(id)+" has left"));
+	{
+		lock_guard<mutex> lck(log_m);
+		log(string("Thread "+to_string(id)+" has left"));
+	}
 }
 
 //PLEASE DO NOT CHANGE THIS FUNCTION
@@ -44,5 +63,3 @@ void Nightclub(){
 	for (auto& thd:thds)
 		thd.join();
 }
-
-
